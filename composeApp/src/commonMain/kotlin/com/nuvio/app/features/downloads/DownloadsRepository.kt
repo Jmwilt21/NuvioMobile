@@ -253,6 +253,26 @@ object DownloadsRepository {
         resumeDownload(downloadId)
     }
 
+    /**
+     * Nuvio Plus: continues a paused or failed download of the same file through a freshly
+     * resolved link, keeping the bytes that are already on disk.
+     */
+    internal fun resumeWithFreshSource(downloadId: String, stream: StreamItem): Boolean {
+        ensureLoaded()
+        val item = _uiState.value.items.firstOrNull { it.id == downloadId } ?: return false
+        if (item.status != DownloadStatus.Paused && item.status != DownloadStatus.Failed) return false
+        val sourceUrl = stream.playableDirectUrl?.trim()?.takeIf { it.isSupportedDownloadUrl() } ?: return false
+        replaceItem(
+            item.copy(
+                sourceUrl = sourceUrl,
+                sourceHeaders = sanitizeRequestHeaders(stream.behaviorHints.proxyHeaders?.request),
+                sourceResponseHeaders = sanitizeResponseHeaders(stream.behaviorHints.proxyHeaders?.response),
+            ),
+        )
+        resumeDownload(downloadId)
+        return true
+    }
+
     internal fun reattachBackgroundDownload(downloadId: String) {
         if (!hasLoaded) return
         val item = _uiState.value.items.firstOrNull { it.id == downloadId } ?: return
