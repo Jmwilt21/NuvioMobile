@@ -42,6 +42,7 @@ import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.NuvioToastController
+import com.nuvio.app.features.downloads.season.ui.SeasonQueueSection
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -163,6 +164,10 @@ private fun LazyListScope.downloadsRootContent(
             }
         }
         .sortedBy { (item, _) -> item.title.lowercase() }
+
+    item(key = "season_queue") {
+        SeasonQueueSection()
+    }
 
     if (activeItems.isNotEmpty()) {
         item {

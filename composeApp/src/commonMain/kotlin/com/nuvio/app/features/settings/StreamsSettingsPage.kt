@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.features.downloads.season.ui.seasonDownloadSettingsContent
 import com.nuvio.app.features.streams.STREAM_BADGE_IMPORT_LIMIT
 import com.nuvio.app.features.streams.StreamBadgeChip
 import com.nuvio.app.features.streams.StreamBadgeChipSize
@@ -195,6 +196,7 @@ internal fun LazyListScope.streamsSettingsContent(isTablet: Boolean) {
             )
         }
     }
+    seasonDownloadSettingsContent(isTablet = isTablet)
 }
 
 @Composable

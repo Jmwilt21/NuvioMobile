@@ -75,6 +75,7 @@ import com.nuvio.app.features.details.EpisodeRatingsVisibility
 import com.nuvio.app.features.details.MetaEpisodeCardStyle
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.details.SeasonViewMode
+import com.nuvio.app.features.downloads.season.ui.SeasonDownloadEntryRow
 import com.nuvio.app.features.details.SeasonViewModeStorage
 import com.nuvio.app.features.details.formatRuntimeFromMinutes
 import com.nuvio.app.features.details.groupedEpisodesForDisplay
@@ -187,6 +188,7 @@ fun DetailSeriesContent(
                 onSelect = { selectedSeasonOverride = it },
                 onLongPress = onSeasonLongPress,
             )
+            SeasonDownloadEntryRow(meta = meta, seasonNumber = currentSeason)
 
             AnimatedContent(
                 targetState = currentSeason,
@@ -297,6 +299,7 @@ internal fun DetailSeriesListHeader(
                 onSelect = onSeasonSelect,
                 onLongPress = onSeasonLongPress,
             )
+            SeasonDownloadEntryRow(meta = meta, seasonNumber = currentSeason)
             if (seasons.size == 1) {
                 DetailSectionTitle(
                     title = if (meta.type != "series" && currentSeason <= 0) {
