@@ -4,7 +4,9 @@ import com.nuvio.app.features.streams.StreamBehaviorHints
 import com.nuvio.app.features.streams.StreamItem
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class SeasonStreamRankingTest {
     private val gb = 1024L * 1024L * 1024L
@@ -80,6 +82,18 @@ class SeasonStreamRankingTest {
             SeasonStreamRanking.fileKey(stream("a", size = 5, fileName = "show.s01e01.mkv")),
             SeasonStreamRanking.fileKey(stream("b", size = 5, fileName = "show.s01e01.mkv")),
         )
+    }
+
+    @Test
+    fun `tiny or far too small downloads count as placeholders`() {
+        val mb = 1024L * 1024L
+        assertTrue(SeasonStreamRanking.isPlaceholderDownload(20 * 1024L, expectedBytes = 270 * mb))
+        assertTrue(SeasonStreamRanking.isPlaceholderDownload(20 * 1024L, expectedBytes = null))
+        assertTrue(SeasonStreamRanking.isPlaceholderDownload(8 * mb, expectedBytes = 1 * gb))
+        assertFalse(SeasonStreamRanking.isPlaceholderDownload(268 * mb, expectedBytes = 270 * mb))
+        // A size hint that describes a whole season pack must not reject a normal episode.
+        assertFalse(SeasonStreamRanking.isPlaceholderDownload(300 * mb, expectedBytes = 20 * gb))
+        assertFalse(SeasonStreamRanking.isPlaceholderDownload(8 * mb, expectedBytes = null))
     }
 
     private fun rank(

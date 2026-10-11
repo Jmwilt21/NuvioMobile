@@ -31,6 +31,9 @@ enum class SeasonQueueFailure {
     NoStreams,
     DownloadFailed,
     Network,
+
+    /** The link answered with a tiny placeholder (for example a debrid proxy's error clip) instead of the episode. */
+    BadFile,
 }
 
 @Serializable
@@ -57,6 +60,8 @@ data class SeasonQueueEntry(
     val attempt: Int = 0,
     /** Identity of the file picked last time, used to decide if a partial file can be continued. */
     val streamFileKey: String? = null,
+    /** File size the addon advertised for the picked stream, used to spot placeholder downloads. */
+    val expectedSizeBytes: Long? = null,
     /** The transfer was cut off by the system (not paused by the user) and should continue by itself. */
     val interrupted: Boolean = false,
     val failure: SeasonQueueFailure? = null,

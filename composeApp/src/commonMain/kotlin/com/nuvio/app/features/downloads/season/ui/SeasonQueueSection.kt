@@ -158,6 +158,7 @@ private fun seasonQueueStatusText(entry: SeasonQueueEntry): String = when (entry
             when (entry.failure) {
                 SeasonQueueFailure.NoStreams -> Res.string.season_queue_status_failed_no_streams
                 SeasonQueueFailure.Network -> Res.string.season_queue_status_failed_network
+                SeasonQueueFailure.BadFile -> Res.string.season_queue_status_failed_bad_file
                 SeasonQueueFailure.DownloadFailed, null -> Res.string.season_queue_status_failed_download
             },
         )

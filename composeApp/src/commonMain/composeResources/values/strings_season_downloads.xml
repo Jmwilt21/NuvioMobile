@@ -26,6 +26,7 @@
     <string name="season_queue_status_waiting_for_app">Paused by Android. Open the app to continue.</string>
     <string name="season_queue_status_failed_no_streams">No downloadable stream found</string>
     <string name="season_queue_status_failed_download">Download failed after trying two streams</string>
+    <string name="season_queue_status_failed_bad_file">The addon returned an error clip instead of the episode</string>
     <string name="season_queue_status_failed_network">Could not reach the addon</string>
     <string name="season_download_settings_section">SEASON DOWNLOADS</string>
     <string name="season_download_settings_addon_default">First stream addon</string>

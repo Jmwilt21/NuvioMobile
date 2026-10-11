@@ -9,6 +9,8 @@ import com.nuvio.app.features.streams.StreamItem
 internal object SeasonStreamRanking {
     private const val MIN_DECENT_RESOLUTION = 1080
     private const val FALLBACK_RESOLUTION = 720
+    private const val MIN_PLAUSIBLE_BYTES = 5L * 1024L * 1024L
+    private const val PLACEHOLDER_CEILING_BYTES = 50L * 1024L * 1024L
 
     fun rank(
         streams: List<StreamItem>,
@@ -46,6 +48,18 @@ internal object SeasonStreamRanking {
 
         // Anything the smart ordering could not judge keeps the addon's own order as a fallback.
         return preferred + candidates.filterNot { it in preferred }
+    }
+
+    fun expectedSizeBytes(stream: StreamItem): Long? = stream.detectedSizeBytes()
+
+    /**
+     * True when a finished download cannot be the real episode: debrid proxies answer a broken
+     * link with a short error clip and a normal HTTP 200, which would otherwise count as success.
+     */
+    fun isPlaceholderDownload(actualBytes: Long, expectedBytes: Long?): Boolean {
+        if (actualBytes < MIN_PLAUSIBLE_BYTES) return true
+        if (expectedBytes == null || expectedBytes <= 0L) return false
+        return actualBytes < PLACEHOLDER_CEILING_BYTES && actualBytes < expectedBytes / 10
     }
 
     /** Stable identity of the file behind a stream, when the addon exposes one. */

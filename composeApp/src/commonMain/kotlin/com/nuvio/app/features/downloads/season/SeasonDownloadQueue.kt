@@ -203,7 +203,12 @@ object SeasonDownloadQueue {
             val next = when {
                 // Removed from the downloads screen while it was ours: the user cancelled it.
                 item == null -> if (entry.status == SeasonQueueStatus.Resolving) entry else null
-                item.status == DownloadStatus.Completed -> null
+                item.status == DownloadStatus.Completed -> when (entry.status) {
+                    SeasonQueueStatus.Downloading -> entry.afterCompletion(item)
+                    // A placeholder file is still listed until the retry replaces it.
+                    SeasonQueueStatus.Queued, SeasonQueueStatus.Resolving -> entry
+                    else -> null
+                }
                 item.status == DownloadStatus.Failed && entry.status == SeasonQueueStatus.Downloading ->
                     entry.afterTransferFailure(item)
                 // Retried by hand from the downloads screen.
@@ -223,6 +228,19 @@ object SeasonDownloadQueue {
             DownloadsRepository.cancelDownload(downloadId)
         }
         pump()
+    }
+
+    /** A finished transfer is done, unless what arrived is clearly not the episode. */
+    private fun SeasonQueueEntry.afterCompletion(item: DownloadItem): SeasonQueueEntry? {
+        val actualBytes = item.totalBytes ?: item.downloadedBytes
+        if (!SeasonStreamRanking.isPlaceholderDownload(actualBytes, expectedSizeBytes)) return null
+        val nextAttempt = attempt + 1
+        log.w { "Placeholder download for $logicalContentKey ($actualBytes bytes, expected $expectedSizeBytes)" }
+        return if (nextAttempt > MAX_ATTEMPT) {
+            copy(status = SeasonQueueStatus.Failed, failure = SeasonQueueFailure.BadFile, errorMessage = null)
+        } else {
+            copy(status = SeasonQueueStatus.Queued, attempt = nextAttempt, errorMessage = null)
+        }
     }
 
     private fun SeasonQueueEntry.afterTransferFailure(item: DownloadItem): SeasonQueueEntry {
@@ -335,7 +353,12 @@ object SeasonDownloadQueue {
             .firstOrNull { it.logicalContentKey == entry.logicalContentKey }
             ?: return false
         mutate(entry.id) {
-            it.copy(status = SeasonQueueStatus.Downloading, downloadId = item.id, streamFileKey = fileKey)
+            it.copy(
+                status = SeasonQueueStatus.Downloading,
+                downloadId = item.id,
+                streamFileKey = fileKey,
+                expectedSizeBytes = SeasonStreamRanking.expectedSizeBytes(stream),
+            )
         }
         return true
     }
