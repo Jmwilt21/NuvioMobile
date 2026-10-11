@@ -29,7 +29,6 @@ import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.downloads.location.DownloadLocationPlatform
 import com.nuvio.app.features.downloads.location.rememberDownloadFolderPicker
-import com.nuvio.app.features.downloads.season.SeasonBackgroundAccess
 import com.nuvio.app.features.downloads.season.SeasonDownloadPreference
 import com.nuvio.app.features.downloads.season.SeasonDownloadSettings
 import com.nuvio.app.features.downloads.season.SeasonDownloadSettingsRepository
@@ -62,7 +61,6 @@ internal fun LazyListScope.seasonDownloadSettingsContent(isTablet: Boolean) {
         }
         val folderPath = remember(refreshTick) { DownloadLocationPlatform.currentPath() }
         val hasStorageAccess = remember(refreshTick) { DownloadLocationPlatform.hasStorageAccess() }
-        val backgroundGranted = remember(refreshTick) { SeasonBackgroundAccess.isGranted() }
         val accessNeededText = stringResource(Res.string.season_download_settings_folder_access_needed)
         val folderUnsupportedText = stringResource(Res.string.season_download_settings_folder_unsupported)
         val pickFolder = rememberDownloadFolderPicker { stored ->
@@ -137,18 +135,6 @@ internal fun LazyListScope.seasonDownloadSettingsContent(isTablet: Boolean) {
                             },
                         )
                     }
-                }
-                if (SeasonBackgroundAccess.isSupported) {
-                    SettingsNavigationRow(
-                        title = stringResource(Res.string.season_download_settings_background_title),
-                        description = if (backgroundGranted) {
-                            stringResource(Res.string.season_download_settings_background_granted)
-                        } else {
-                            stringResource(Res.string.season_download_settings_background_description)
-                        },
-                        isTablet = isTablet,
-                        onClick = { SeasonBackgroundAccess.request() },
-                    )
                 }
             }
         }

@@ -57,6 +57,8 @@ data class SeasonQueueEntry(
     val attempt: Int = 0,
     /** Identity of the file picked last time, used to decide if a partial file can be continued. */
     val streamFileKey: String? = null,
+    /** The transfer was cut off by the system (not paused by the user) and should continue by itself. */
+    val interrupted: Boolean = false,
     val failure: SeasonQueueFailure? = null,
     val errorMessage: String? = null,
     val createdAtEpochMs: Long = 0L,

@@ -3,11 +3,8 @@ package com.nuvio.app.features.downloads.season
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.content.Intent
 import android.content.SharedPreferences
-import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
 import com.nuvio.app.core.storage.ProfileScopedKey
 import com.nuvio.app.features.downloads.location.DownloadLocationPlatform
 
@@ -35,25 +32,6 @@ internal actual object SeasonDownloadStorage {
     }
 }
 
-internal actual object SeasonBackgroundAccess {
-    private var appContext: Context? = null
-
-    fun initialize(context: Context) {
-        appContext = context.applicationContext
-    }
-
-    actual val isSupported: Boolean = true
-
-    actual fun isGranted(): Boolean = appContext?.let(Settings::canDrawOverlays) == true
-
-    actual fun request() {
-        val context = appContext ?: return
-        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}"))
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        runCatching { context.startActivity(intent) }
-    }
-}
-
 /** Single entry point wired from MainActivity for everything the season download feature needs on Android. */
 object SeasonDownloadsAndroid {
     private var registered = false
@@ -61,7 +39,7 @@ object SeasonDownloadsAndroid {
     fun initialize(context: Context) {
         val appContext = context.applicationContext
         SeasonDownloadStorage.initialize(appContext)
-        SeasonBackgroundAccess.initialize(appContext)
+        SeasonQueuePlatform.initialize(appContext)
         DownloadLocationPlatform.initialize(appContext)
         if (registered) return
         registered = true

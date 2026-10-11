@@ -21,10 +21,10 @@ internal actual object SeasonDownloadStorage {
     }
 }
 
-internal actual object SeasonBackgroundAccess {
-    actual val isSupported: Boolean = false
+internal actual object SeasonQueuePlatform {
+    actual fun keepAlive(pendingEpisodes: Int) = Unit
 
-    actual fun isGranted(): Boolean = false
+    actual fun release() = Unit
 
-    actual fun request() = Unit
+    actual fun takeOver(downloadId: String): Boolean = false
 }

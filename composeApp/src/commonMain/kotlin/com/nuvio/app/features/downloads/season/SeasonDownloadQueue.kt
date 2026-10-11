@@ -45,6 +45,7 @@ object SeasonDownloadQueue {
 
     private val resolveJobs = mutableMapOf<String, Job>()
     private var hasStarted = false
+    internal val isStarted: Boolean get() = hasStarted
     private var loadedProfileId: Int? = null
     private var nextOrdinal = 0L
 
@@ -129,6 +130,36 @@ object SeasonDownloadQueue {
     fun onAppForeground() {
         if (!hasStarted) return
         reloadIfProfileChanged()
+        syncKeeper()
+        resumeInterruptedTransfers()
+        retryWaitingEntries()
+    }
+
+    internal fun onSettingsChanged() {
+        if (hasStarted) pump()
+    }
+
+    internal fun hasPendingWork(): Boolean = _entries.value.any { it.status != SeasonQueueStatus.Failed }
+
+    /** The background keeper just (re)started: continue anything it can run. */
+    internal fun onKeeperStarted() {
+        resumeInterruptedTransfers()
+        retryWaitingEntries()
+    }
+
+    /** The keeper finished a transfer and can take the next one. */
+    internal fun onKeeperIdle() {
+        onDownloadsChanged(DownloadsRepository.uiState.value.items)
+        syncKeeper()
+    }
+
+    /** A transfer the keeper was running stopped. A pause by the user must not be undone automatically. */
+    internal fun onKeeperTransferInterrupted(downloadId: String, byUser: Boolean) {
+        val entry = _entries.value.firstOrNull { it.downloadId == downloadId } ?: return
+        mutate(entry.id) { it.copy(interrupted = !byUser) }
+    }
+
+    private fun retryWaitingEntries() {
         // Also give episodes another go that gave up because the addon was unreachable (e.g. offline).
         val resumed = _entries.value.map { entry ->
             val unreachable = entry.status == SeasonQueueStatus.Failed && entry.failure == SeasonQueueFailure.Network
@@ -142,8 +173,15 @@ object SeasonDownloadQueue {
         pump()
     }
 
-    internal fun onSettingsChanged() {
-        if (hasStarted) pump()
+    /** Continues downloads that were cut off by the system rather than paused by the user. */
+    private fun resumeInterruptedTransfers() {
+        val itemsById = DownloadsRepository.uiState.value.items.associateBy { it.id }
+        _entries.value.filter { it.interrupted && it.status == SeasonQueueStatus.Downloading }.forEach { entry ->
+            val downloadId = entry.downloadId ?: return@forEach
+            mutate(entry.id) { it.copy(interrupted = false) }
+            if (itemsById[downloadId]?.status != DownloadStatus.Paused) return@forEach
+            if (!SeasonQueuePlatform.takeOver(downloadId)) DownloadsRepository.resumeDownload(downloadId)
+        }
     }
 
     private fun remove(targets: List<SeasonQueueEntry>) {
@@ -190,7 +228,12 @@ object SeasonDownloadQueue {
     private fun SeasonQueueEntry.afterTransferFailure(item: DownloadItem): SeasonQueueEntry {
         val message = item.errorMessage
         if (message != null && backgroundStartRefusedMarkers.any { message.contains(it, ignoreCase = true) }) {
-            return copy(status = SeasonQueueStatus.WaitingForApp, errorMessage = null)
+            // Android will not start a new background job: let the queue's own job carry the transfer.
+            return if (SeasonQueuePlatform.takeOver(item.id)) {
+                this
+            } else {
+                copy(status = SeasonQueueStatus.WaitingForApp, errorMessage = null)
+            }
         }
         val nextAttempt = attempt + 1
         return if (nextAttempt > MAX_ATTEMPT) {
@@ -309,6 +352,12 @@ object SeasonDownloadQueue {
     private fun publish(entries: List<SeasonQueueEntry>) {
         _entries.value = entries
         SeasonDownloadStorage.saveQueue(json.encodeToString(StoredSeasonQueue(entries)))
+        syncKeeper()
+    }
+
+    private fun syncKeeper() {
+        val pending = _entries.value.count { it.status != SeasonQueueStatus.Failed }
+        if (pending > 0) SeasonQueuePlatform.keepAlive(pending) else SeasonQueuePlatform.release()
     }
 
     private fun reloadIfProfileChanged(): Boolean {

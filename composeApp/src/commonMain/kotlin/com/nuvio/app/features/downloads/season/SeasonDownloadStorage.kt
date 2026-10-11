@@ -8,11 +8,16 @@ internal expect object SeasonDownloadStorage {
 }
 
 /**
- * Optional OS permission that lets the queue start the next transfer while the app is in the
- * background. Without it the queue continues the next time the app is opened.
+ * Keeps the queue going while the app is in the background, where the OS may refuse to start
+ * new transfers.
  */
-internal expect object SeasonBackgroundAccess {
-    val isSupported: Boolean
-    fun isGranted(): Boolean
-    fun request()
+internal expect object SeasonQueuePlatform {
+    /** Called while there is queue work left; starts or refreshes whatever keeps the process alive. */
+    fun keepAlive(pendingEpisodes: Int)
+
+    /** Called once the queue has nothing left to do. */
+    fun release()
+
+    /** Runs a download the OS refused to start in the background. Returns false when that is not possible. */
+    fun takeOver(downloadId: String): Boolean
 }

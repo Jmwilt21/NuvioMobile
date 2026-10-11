@@ -5,13 +5,17 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <!-- Nuvio Plus: custom download folder and background season queue -->
+    <!-- Nuvio Plus: custom download folder -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application>
         <service
             android:name="com.nuvio.app.features.downloads.DownloadsTransferJobService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
+        <!-- Nuvio Plus: keeps the season download queue running in the background -->
+        <service
+            android:name="com.nuvio.app.features.downloads.season.SeasonQueueJobService"
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="false" />
         <service
