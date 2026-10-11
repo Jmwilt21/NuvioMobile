@@ -34,7 +34,8 @@ object SeasonDownloadQueue {
     private const val MAX_FETCH_RETRIES = 6
     private const val FETCH_RETRY_BASE_DELAY_MS = 15_000L
     private const val FETCH_RETRY_MAX_DELAY_MS = 5 * 60_000L
-    private const val BACKGROUND_START_REFUSED_MARKER = "could not start the download"
+    // Messages the platform downloader reports when Android will not start a transfer from the background.
+    private val backgroundStartRefusedMarkers = listOf("could not start the download", "user-initiated", "user initiated")
 
     private val log = Logger.withTag("SeasonDownloadQueue")
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -128,12 +129,16 @@ object SeasonDownloadQueue {
     fun onAppForeground() {
         if (!hasStarted) return
         reloadIfProfileChanged()
-        val waiting = _entries.value.filter { it.status == SeasonQueueStatus.WaitingForApp }
-        if (waiting.isNotEmpty()) {
-            publish(_entries.value.map { entry ->
-                if (entry.status == SeasonQueueStatus.WaitingForApp) entry.copy(status = SeasonQueueStatus.Queued) else entry
-            })
+        // Also give episodes another go that gave up because the addon was unreachable (e.g. offline).
+        val resumed = _entries.value.map { entry ->
+            val unreachable = entry.status == SeasonQueueStatus.Failed && entry.failure == SeasonQueueFailure.Network
+            if (entry.status == SeasonQueueStatus.WaitingForApp || unreachable) {
+                entry.copy(status = SeasonQueueStatus.Queued, failure = null, errorMessage = null)
+            } else {
+                entry
+            }
         }
+        if (resumed != _entries.value) publish(resumed)
         pump()
     }
 
@@ -184,7 +189,7 @@ object SeasonDownloadQueue {
 
     private fun SeasonQueueEntry.afterTransferFailure(item: DownloadItem): SeasonQueueEntry {
         val message = item.errorMessage
-        if (message?.contains(BACKGROUND_START_REFUSED_MARKER, ignoreCase = true) == true) {
+        if (message != null && backgroundStartRefusedMarkers.any { message.contains(it, ignoreCase = true) }) {
             return copy(status = SeasonQueueStatus.WaitingForApp, errorMessage = null)
         }
         val nextAttempt = attempt + 1

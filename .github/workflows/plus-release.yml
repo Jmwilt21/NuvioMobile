@@ -1,0 +1,83 @@
+name: Nuvio Plus Release
+
+# Personal fork: builds signed APKs on every push to the main branch and publishes them as a
+# GitHub Release so Obtainium can pick up updates.
+
+on:
+  push:
+    branches: [cmp-rewrite]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nuvio-plus-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish APKs
+    if: github.repository_owner != 'NuvioMedia'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_PROPERTIES_BASE64: ${{ secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
+      RELEASE_KEYSTORE_BASE64: ${{ secrets.NUVIO_RELEASE_KEYSTORE_BASE64 }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Read version
+        id: version
+        run: |
+          base="$(sed -n 's/^MARKETING_VERSION[[:space:]]*=[[:space:]]*//p' iosApp/Configuration/Version.xcconfig | tr -d '[:space:]')"
+          if [[ -z "${base}" ]]; then
+            echo "MARKETING_VERSION is missing." >&2
+            exit 1
+          fi
+          echo "name=${base}-plus.${GITHUB_RUN_NUMBER}" >> "${GITHUB_OUTPUT}"
+
+      - name: Configure release properties
+        run: |
+          for secret_name in RELEASE_PROPERTIES_BASE64 RELEASE_KEYSTORE_BASE64; do
+            if [[ -z "${!secret_name}" ]]; then
+              echo "Missing required secret: ${secret_name}" >&2
+              exit 1
+            fi
+          done
+          keystore_path="${RUNNER_TEMP}/nuvio-plus-release.jks"
+          printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
+          printf '%s' "${RELEASE_PROPERTIES_BASE64}" | base64 --decode > local.properties
+          sed -i -E '/^[[:space:]]*(sdk\.dir|NUVIO_RELEASE_STORE_FILE)[[:space:]]*=/d' local.properties
+          printf '\nNUVIO_RELEASE_STORE_FILE=%s\n' "${keystore_path}" >> local.properties
+
+      - name: Build full release APKs
+        run: ./gradlew :androidApp:assembleFullRelease -Pnuvio.app.versionName="${{ steps.version.outputs.name }}" --stacktrace
+
+      - name: Publish GitHub release
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+        run: |
+          mkdir release-assets
+          for apk in androidApp/build/outputs/apk/full/release/*.apk; do
+            abi="$(basename "${apk}" .apk | sed -E 's/^androidApp-full-//; s/-release$//')"
+            cp "${apk}" "release-assets/nuvio-plus-${VERSION_NAME}-${abi}.apk"
+          done
+          gh release create "${VERSION_NAME}" release-assets/*.apk \
+            --repo "${GITHUB_REPOSITORY}" \
+            --target "${GITHUB_SHA}" \
+            --title "Nuvio Plus ${VERSION_NAME}" \
+            --notes "Automated build of ${GITHUB_SHA::7} ($(git log -1 --format=%s))." \
+            --latest
