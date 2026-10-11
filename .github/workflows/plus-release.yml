@@ -63,6 +63,14 @@ jobs:
           sed -i -E '/^[[:space:]]*(sdk\.dir|NUVIO_RELEASE_STORE_FILE)[[:space:]]*=/d' local.properties
           printf '\nNUVIO_RELEASE_STORE_FILE=%s\n' "${keystore_path}" >> local.properties
 
+      - name: Fit Gradle memory to the hosted runner
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo 'org.gradle.jvmargs=-Xmx6g -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=1536m'
+            echo 'kotlin.daemon.jvmargs=-Xmx4g'
+          } >> ~/.gradle/gradle.properties
+
       - name: Build full release APKs
         run: ./gradlew :androidApp:assembleFullRelease -Pnuvio.app.versionName="${{ steps.version.outputs.name }}" --stacktrace
 
