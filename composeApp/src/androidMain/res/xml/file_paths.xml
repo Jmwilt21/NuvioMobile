@@ -9,4 +9,7 @@
     <files-path
         name="nuvio_downloads"
         path="downloads/" />
+    <external-path
+        name="nuvio_shared_downloads"
+        path="." />
 </paths>

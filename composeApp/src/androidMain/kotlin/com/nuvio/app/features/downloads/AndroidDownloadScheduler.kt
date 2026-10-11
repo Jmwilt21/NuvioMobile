@@ -17,6 +17,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.nuvio.app.features.downloads.location.DownloadLocationPlatform
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
@@ -36,7 +37,7 @@ import okhttp3.ConnectionPool
 
 internal class AndroidDownloadScheduler(val context: Context) {
     val store = AndroidDownloadStore(File(context.filesDir, "download-transfers"))
-    val directory = File(context.filesDir, "downloads")
+    val directory: File get() = DownloadLocationPlatform.stagingDirectory(context)
     private val locks = ConcurrentHashMap<String, Mutex>()
     private val cleanupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -124,7 +125,9 @@ internal class AndroidDownloadScheduler(val context: Context) {
             lock(fileName).withLock {
                 if (store.get(fileName) == null) {
                     File(directory, "$fileName.part").delete()
-                    DownloadSubtitleStorage(File(directory, fileName).toURI().toString()).remove()
+                    val destination = transfer?.let { DownloadLocationPlatform.destinationFile(context, it.item) }
+                        ?: File(directory, fileName)
+                    DownloadSubtitleStorage(destination.toURI().toString()).remove()
                 }
             }
         }
@@ -142,7 +145,7 @@ internal class AndroidDownloadScheduler(val context: Context) {
     ): Boolean = lock(transfer.item.fileName).withLock {
         val fileName = transfer.item.fileName
         if (!isActive(transfer)) return@withLock false
-        val destination = File(directory, fileName)
+        val destination = DownloadLocationPlatform.destinationFile(context, transfer.item)
         val client = if (network != null) {
             downloadHttpClient.newBuilder()
                 .socketFactory(network.socketFactory)
